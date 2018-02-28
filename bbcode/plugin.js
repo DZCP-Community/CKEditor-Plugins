@@ -26,8 +26,8 @@
 		}
 	} );
 
-	var bbcodeMap = { b: 'strong', u: 'u', i: 'em', color: 'span', size: 'span', quote: 'blockquote', code: 'code', url: 'a', email: 'span', img: 'span', '*': 'li', list: 'ol' },
-		convertMap = { strong: 'b', b: 'b', u: 'u', em: 'i', i: 'i', code: 'code', li: '*' },
+	var bbcodeMap = { b: 'strong', u: 'u', i: 'em', color: 'span', size: 'span', quote: 'blockquote', code: 'code', url: 'a', email: 'span', img: 'span', '*': 'li', list: 'ol', youtube: 'youtube' },
+		convertMap = { strong: 'b', b: 'b', u: 'u', em: 'i', i: 'i', code: 'code', li: '*', iframe: 'youtube' },
 		tagnameMap = { strong: 'b', em: 'i', u: 'u', li: '*', ul: 'list', ol: 'list', code: 'code', a: 'link', img: 'img', blockquote: 'quote' },
 		stylesMap = { color: 'color', size: 'font-size' },
 		attributesMap = { url: 'href', email: 'mailhref', quote: 'cite', list: 'listType' };
@@ -184,7 +184,7 @@
 	 * @returns {CKEDITOR.htmlParser.fragment} The fragment created.
 	 */
 	CKEDITOR.htmlParser.fragment.fromBBCode = function( source ) {
-		var parser = new CKEDITOR.BBCodeParser(),
+		var parser = new CKEDITOR.BBCodeParser(), //bbcPartsRegex
 			fragment = new CKEDITOR.htmlParser.fragment(),
 			pendingInline = [],
 			pendingBrs = 0,
@@ -375,7 +375,6 @@
 			if ( !currentDtd || currentDtd[ '#' ] ) {
 				checkPendingBrs();
 				checkPending();
-
 				text.replace( /(\r\n|[\r\n])|[^\r\n]*/g, function( piece, lineBreak ) {
 					if ( lineBreak !== undefined && lineBreak.length )
 						pendingBrs++;
@@ -493,6 +492,20 @@
 			attribute: function( name, val ) {
 				if ( name == 'option' ) {
 					this.write( '=', val );
+				} else if (name == 'ytwidth') { //YouTube
+					this.write(' width=', val);
+				} else if (name == 'ytheight') {
+					this.write(' height=', val);
+				} else if (name == 'ytautoplay') {
+					this.write(' autoplay=', val);
+				} else if (name == 'ytnocookie') {
+					this.write(' nocookie=', val);
+				} else if (name == 'ytrel') {
+					this.write(' rel=', val);
+				} else if (name == 'ytcontrols') {
+					this.write(' controls=', val);
+				} else if (name == 'yttime') {
+					this.write(' time=', val);
 				}
 			},
 
@@ -577,9 +590,7 @@
 			var config = editor.config;
 
 			function BBCodeToHtml( code ) {
-				var fragment = CKEDITOR.htmlParser.fragment.fromBBCode( code ),
-					writer = new CKEDITOR.htmlParser.basicWriter();
-
+				var fragment = CKEDITOR.htmlParser.fragment.fromBBCode( code ), writer = new CKEDITOR.htmlParser.basicWriter();
 				fragment.writeHtml( writer, bbcodeFilter );
 				return writer.getHtml( true );
 			}
@@ -644,6 +655,17 @@
 					}
 				}
 			} );
+
+			//YouTube
+			function getParameterByName(name, url) {
+				if (!url) url = window.location.href;
+				name = name.replace(/[\[\]]/g, "\\$&");
+				var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+					results = regex.exec(url);
+				if (!results) return null;
+				if (!results[2]) return '';
+				return decodeURIComponent(results[2].replace(/\+/g, " "));
+			}
 
 			editor.dataProcessor.htmlFilter.addRules( {
 				elements: {
@@ -721,6 +743,42 @@
 								return new CKEDITOR.htmlParser.text( smileyMap[ alt ] );
 							else
 								element.children = [ new CKEDITOR.htmlParser.text( src ) ];
+						} else if (tagName == 'youtube') { //YouTube
+							element.isEmpty = 0;
+
+							var src = attributes.src;
+
+							var control_parameter = getParameterByName("controls",src);
+							var controls = (control_parameter !== null && control_parameter == 0);
+
+							var rel_parameter = getParameterByName("rel",src);
+							var rel = (rel_parameter !== null && rel_parameter >= 1);
+
+							var autoplay_parameter = getParameterByName("autoplay",src);
+							var autoplay = (autoplay_parameter !== null && autoplay_parameter >= 1);
+
+							var time = false;
+							var time_parameter = getParameterByName("start",src);
+							if(time_parameter !== null) {
+								time = time_parameter;
+							}
+
+							var nocookie = (src.toLocaleLowerCase().indexOf("youtube-nocookie") != -1);
+
+							//Extract ID
+							var res = src.split("embed/");
+							res = res[1].split("?");
+
+							element.children = [new CKEDITOR.htmlParser.text(res[0])];
+							element.attributes.ytheight = attributes.height;
+							element.attributes.ytwidth = attributes.width;
+							element.attributes.ytautoplay = autoplay;
+							element.attributes.ytnocookie = nocookie;
+							element.attributes.ytrel = rel;
+							element.attributes.ytcontrols = controls;
+							element.attributes.yttime = time;
+
+							tagName = 'youtube';
 						}
 
 						element.name = tagName;
