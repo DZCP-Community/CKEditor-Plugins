@@ -17,7 +17,7 @@ bbcode-dzcp-youtube-test-01.html => HTML to BBCode Test ( OK )
 
 oder
 
-bbcode-dzcp-youtube-test-02.html => BBCode to HTML Test ( FAIL = JS-Error )
+bbcode-dzcp-youtube-test-02.html => BBCode to HTML Test ( OK )
 
 ## Tags die noch als Plugins/Menu in den CKEditor eingefügt werden sollen ( BBCode bereits in DZCP funktionsfähig )
 
